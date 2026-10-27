@@ -20,7 +20,7 @@ npm run dev
 | src/main.jsx | React 页面、准备状态、拍照与保存顺序、重试、防重复点击 |
 | src/services/camera.js | openCamera() → MediaStream；closeCamera(stream)；capturePhoto(video) → Photo |
 | src/services/localStorage.js | supportsDirectorySaving()；chooseDirectory() → 目录句柄；savePhoto(directory, photo) → 保存回执 |
-| src/services/errors.js | 将设备及权限错误转换为中文提示 |
+| src/services/errors.js | 将设备及权限错误转换为英文提示 |
 | src/styles.css | 页面外观与布局 |
 
 Photo 对象包含 id（UUID）、capturedAt（UTC ISO 时间）、blob（PNG 文件）、width、height、filename。拍摄以视频实际尺寸为准；1920×1080 仅为期望值，摄像头可能返回其他尺寸。PNG 避免额外有损编码，但不会提升摄像头本身的画质。画面不镜像、不裁剪、不美化。
@@ -50,3 +50,14 @@ Photo 对象包含 id（UUID）、capturedAt（UTC ISO 时间）、blob（PNG �
 6. 关闭摄像头后禁止拍摄；刷新后重新准备；断网时本机拍摄保存仍可用（已加载页面）。
 
 自动测试使用模拟文件句柄验证写入完成才返回成功、失败回传及重试文件名一致；真实硬件和系统文件夹授权仍需人工验收。
+
+## 自动部署
+
+正式网站：https://bigben171.github.io/ivt/
+
+工作流：`.github/workflows/deploy-pages.yml`。
+提交或合并到 `main` 后，GitHub Actions 自动执行 `npm ci`、`npm test`、带 `/ivt/` 资源路径的生产构建，再部署 `dist` 到 GitHub Pages。测试或构建失败时不会发布新版本，已有成功版本继续提供访问。可在仓库 Actions 页面查看运行记录，也可以通过 Run workflow 手动发布。
+
+仓库 Settings → Pages → Source 使用 GitHub Actions。无需在仓库中保存个人访问令牌；发布使用 GitHub 提供的临时工作流令牌。仅修改本地文件、不推送到 GitHub，不会触发部署。
+
+旧的 chatgpt.site 地址是独立的 Sites 发布，不会随 GitHub Actions 更新。`.openai/hosting.json` 保留旧站点标识，GitHub Pages 不使用它。照片仍保存在访问者自己的电脑上，不会上传到 GitHub。
