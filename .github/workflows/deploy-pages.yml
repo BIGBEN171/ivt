@@ -1,13 +1,19 @@
+# Publish the frontend's static build, never locally captured photos.
+# Action revisions are pinned to commit hashes; adjacent version labels are notes.
 name: Deploy Clarity Capture
 
+# Local edits do not trigger this workflow until pushed/merged into main.
+# workflow_dispatch also exposes a manual run option in GitHub Actions.
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
+# Keep the default token read-only; only the deploy job receives publishing rights.
 permissions:
   contents: read
 
+# Serialize Pages runs without interrupting a deployment already in progress.
 concurrency:
   group: github-pages
   cancel-in-progress: false
@@ -22,25 +28,31 @@ jobs:
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: '22'
+          # Cache npm's download cache; npm ci still installs the locked packages.
           cache: npm
       - name: Install dependencies
         run: npm ci
       - name: Test
         run: npm test
+      # GitHub hosts this repository under /ivt/, so built asset URLs need that base.
       - name: Build for the repository URL
         run: npm run build -- --base=/ivt/
       - name: Upload website
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
         with:
+          # Only the generated static output is passed to the deployment job.
           path: dist
 
   deploy:
+    # A failed installation, test, build, or artifact upload prevents publication.
     needs: build
     runs-on: ubuntu-latest
     permissions:
+      # Pages write access plus an OIDC identity token authorize this deployment.
       pages: write
       id-token: write
     environment:
+      # Associate the run with GitHub's deployment environment and published URL.
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:

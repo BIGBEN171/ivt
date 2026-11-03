@@ -3,3 +3,9 @@ dist/
 *.local
 .env*
 photos/
+# Python environments, generated caches, and locally received photo data.
+backend/.venv/
+__pycache__/
+.pytest_cache/
+*.pyc
+backend/data/

@@ -1,6 +1,8 @@
 # 清晰 · 本机拍摄原型
 
-JavaScript + React。当前仅实现本机摄像头预览、拍照、保存至工作人员授权的文件夹；不上传照片，不包含诊断功能。
+前端使用 JavaScript + React，实现本机摄像头预览、拍照、保存至工作人员授权的文件夹。另有独立的 Python + FastAPI 后端，提供测试用 PNG 上传、查询和读取接口。前端尚未连接上传接口，不自动传输照片，不包含诊断功能。
+
+后端结构、启动命令与接口约定见 [backend/README.md](backend/README.md)。新增 Python 代码与测试均带英文注释；后端只用于本机开发，尚未部署，现有 GitHub Pages 工作流仍只发布前端。
 
 ## 启动
 
@@ -34,9 +36,9 @@ Photo 对象包含 id（UUID）、capturedAt（UTC ISO 时间）、blob（PNG �
 
 目录授权仅用于当前页面会话，重新打开页面需要重新选择。使用 localhost 或 HTTPS；不能通过普通局域网 HTTP 地址保证摄像头可用。不使用静默拍摄，工作人员主动开启摄像头；关闭按钮或卸载页面时释放摄像头。
 
-## 后续云端扩展边界（尚未实现）
+## 后续云端扩展边界（尚未接入云端）
 
-保持 capturePhoto 和 savePhoto 各自独立。后续增加 uploadPhoto(photo) 模块，在本地保存成功之后安排后台上传；上传失败不改变“本地保存成功”的事实。云端方案确定后需要设计持久化待上传队列、断网重试、以 photo.id 去重、访问认证和独立上传状态。当前没有空壳上传调用，也没有假成功回执。
+保持 capturePhoto 和 savePhoto 各自独立。后续前端增加 uploadPhoto(photo) 模块，在本地保存成功之后安排后台上传；上传失败不改变“本地保存成功”的事实。现有本地后端已提供按 photo.id 去重的上传接口；云端方案确定后仍需设计持久化待上传队列、断网重试、访问认证和独立上传状态。当前前端没有上传调用，后端尚未接入云存储。
 
 第一版无患者信息：照片编号不能替代患者身份。后续关联方式需单独确定。GitHub 管理代码、网站托管、云端照片存储是三个不同职责。
 
@@ -51,5 +53,10 @@ Photo 对象包含 id（UUID）、capturedAt（UTC ISO 时间）、blob（PNG �
 
 自动测试使用模拟文件句柄验证写入完成才返回成功、失败回传及重试文件名一致；真实硬件和系统文件夹授权仍需人工验收。
 
+## 前后端自动化
+
 正式网站：https://bigben171.github.io/ivt/
 
+- 前端：`.github/workflows/deploy-pages.yml` 在 main 更新后测试、构建并发布 GitHub Pages。
+- 后端：`.github/workflows/backend-ci.yml` 在 main 更新或 PR 时安装 Python 依赖并运行测试；当前不部署 Python 服务。
+- 后续后端托管平台可以绑定同一仓库独立自动部署，需另行配置运行环境、持久存储和认证。

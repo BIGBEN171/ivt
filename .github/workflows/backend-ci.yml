@@ -1,0 +1,31 @@
+# Test the Python API independently; GitHub Pages cannot run a Python server.
+# This workflow validates backend changes but does not publish a backend service.
+name: Backend tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - name: Set up Python
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install locked dependencies
+        run: python -m pip install -r backend/requirements.txt
+      # Tests use synthetic images and temporary directories, never patient data.
+      - name: Test the API and storage adapter
+        run: python -m pytest backend/tests -q
