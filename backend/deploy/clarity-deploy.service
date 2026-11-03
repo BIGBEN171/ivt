@@ -1,0 +1,13 @@
+# Fixed, root-owned controller; downloaded application code builds as ubuntu.
+[Unit]
+Description=Check GitHub CI and update the internal Clarity API
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /usr/local/lib/clarity-deploy/deployer.py
+TimeoutStartSec=30min
+UMask=0077
+Environment=PYTHONUNBUFFERED=1
+

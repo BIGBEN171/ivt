@@ -2,6 +2,8 @@
 
 这是拍照项目的独立 FastAPI 后端，为以后的云端传输准备接口。当前前端没有调用它，原有拍照和本机保存行为保持不变。所有 Python 代码和测试均带英文注释。
 
+腾讯云已部署仅服务器内部可访问的实例，并配置检查 GitHub CI 后更新的定时器；详见 [部署与维护说明](deploy/TENCENT.md)。下列启动命令仍用于本地开发。
+
 ## 启动（Windows PowerShell）
 
 在项目根目录 `F:\网页` 执行。建议 Python 3.13（本次验证版本）；虚拟环境隔离于前端依赖。
@@ -86,6 +88,6 @@ backend/.venv/Scripts/python.exe -m pytest backend/tests -q
 4. 将本地存储替换为持久云存储，保留 ID、校验与重试语义；规划备份和保留策略。
 5. 在网关限制整个请求体大小及请求速率。当前大小检查发生在 multipart 解析之后，不是网关级流量限制。
 
-这一版没有认证，因此仅供本机开发，不能直接公开用于真实患者照片。现有 Pages 工作流仍只部署前端，没有增加后端发布步骤。
+这一版没有认证，因此只能在本机或服务器内部使用，不能直接公开用于真实患者照片。Pages 工作流仍只部署前端；腾讯云服务器主动检查后端 CI 并拉取代码，不依赖 Pages 来发布 Python 服务。
 
 接口实现参考：[FastAPI 文件与表单文档](https://fastapi.tiangolo.com/tutorial/request-forms-and-files/)。

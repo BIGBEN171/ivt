@@ -1,0 +1,13 @@
+# A pull model needs no incoming webhook, SSH secret, or new firewall rule.
+# Roughly 12 public GitHub API calls/hour while idle, below the anonymous limit.
+[Unit]
+Description=Poll GitHub for tested backend changes every five minutes
+
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=5min
+RandomizedDelaySec=20
+Unit=clarity-deploy.service
+
+[Install]
+WantedBy=timers.target

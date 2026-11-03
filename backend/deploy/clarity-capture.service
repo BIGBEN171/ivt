@@ -1,0 +1,29 @@
+# systemd unit for the inspected Tencent Cloud Ubuntu instance.
+# Keep the API on loopback until HTTPS and application authentication are ready.
+[Unit]
+Description=Clarity Capture internal Python API
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+# Root-owned symlink selects a tested version; photo data never lives here.
+WorkingDirectory=/opt/clarity-capture-current
+Environment=CAPTURE_DATA_DIR=/home/ubuntu/clarity-capture-data
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/clarity-capture-current/.venv/bin/python -m uvicorn backend.main:app --host 127.0.0.1 --port 8010
+Restart=on-failure
+RestartSec=5
+UMask=0077
+# Make the service filesystem read-only except for its separate photo directory.
+# PrivateTmp still allows temporary upload files without sharing the host's /tmp.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/home/ubuntu/clarity-capture-data
+
+[Install]
+WantedBy=multi-user.target

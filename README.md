@@ -58,5 +58,5 @@ Photo 对象包含 id（UUID）、capturedAt（UTC ISO 时间）、blob（PNG �
 正式网站：https://bigben171.github.io/ivt/
 
 - 前端：`.github/workflows/deploy-pages.yml` 在 main 更新后测试、构建并发布 GitHub Pages。
-- 后端：`.github/workflows/backend-ci.yml` 在 main 更新或 PR 时安装 Python 依赖并运行测试；当前不部署 Python 服务。
-- 后续后端托管平台可以绑定同一仓库独立自动部署，需另行配置运行环境、持久存储和认证。
+- 后端：`.github/workflows/backend-ci.yml` 在 main 更新或 PR 时运行测试。腾讯云服务器每约 5 分钟检查 main；对应 push CI 通过后自动安装、测试并切换内部后端，失败可回退。
+- 腾讯云后端仍只监听 `127.0.0.1:8010`；公网 HTTPS、认证和前端上传尚未接入。部署状态及维护方式见 [腾讯云部署说明](backend/deploy/TENCENT.md)。

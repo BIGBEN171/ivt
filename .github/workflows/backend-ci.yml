@@ -1,5 +1,6 @@
 # Test the Python API independently; GitHub Pages cannot run a Python server.
-# This workflow validates backend changes but does not publish a backend service.
+# The Tencent server polls this workflow and deploys only successful main push runs.
+# No server credentials or incoming deployment port are needed by GitHub Actions.
 name: Backend tests
 
 on:
