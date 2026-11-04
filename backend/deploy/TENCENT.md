@@ -1,6 +1,27 @@
-# 腾讯云内部部署记录
+# 腾讯云部署记录
 
-目标：已有的北京轻量应用服务器，Ubuntu 24.04。仅部署服务器内部接口，不开放公网，不修改原有 Nginx 或其他应用。
+> 2026-11-04 更新：前端已迁移为腾讯云本地静态托管，下面的前端反向代理段落是历史记录。当前前端路径、独立自动部署和版本回退说明见 [FRONTEND.md](FRONTEND.md)。后端内部访问和自动部署流程仍有效。
+
+目标：已有的北京轻量应用服务器，Ubuntu 24.04。最初只部署内部接口；2026-11-03 按要求新增独立的公网 HTTP 测试入口。
+
+## 公网前端入口（当前状态）
+
+- 前端页面：`https://62.234.95.210:8082/`；原 HTTP 地址自动跳转。
+- 请求路径：公网 TCP 8082 → Nginx → GitHub Pages 已发布的前端。
+- 这是前端反向代理，不是服务器本地静态副本；依赖 GitHub Pages 可用性，页面随现有 Pages 自动发布更新。
+- Python 后端保持 `127.0.0.1:8010`，8082 不再转发任何后端请求。已验证 `/api/v1/health`、`/docs`、`/openapi.json` 和照片地址在公网均返回 404。
+- 配置源文件：`backend/deploy/clarity-public.conf`；服务器安装路径：`/etc/nginx/conf.d/clarity-public.conf`。配置变更需手动安装并执行 `nginx -t` 和重载。
+- 防火墙的 TCP 8082 规则保留；原备注 `Clarity Capture HTTP test API` 是历史名称。
+- HTTPS 使用受信任的 IP 证书，续期任务和端口用途见 [HTTPS 运维说明](HTTPS.md)。摄像头和文件夹仍需要用户在浏览器内授权；后端自动部署继续使用内部健康检查。
+
+关闭整个公网前端入口时，可在云防火墙删除 TCP 8082 规则，或停止该 Nginx 监听：
+
+```bash
+# Disable only this frontend gateway; keep the internal API and its deployment timer.
+sudo mv /etc/nginx/conf.d/clarity-public.conf /etc/nginx/conf.d/clarity-public.conf.disabled
+# Check the complete configuration before reloading existing workers.
+sudo nginx -t && sudo systemctl reload nginx
+```
 
 ## 路径与进程
 
@@ -10,7 +31,7 @@
 - 上传数据：`/home/ubuntu/clarity-capture-data`（与源码分开）
 - 版本记录：程序目录中的 `DEPLOYED_COMMIT`
 - systemd 服务：`clarity-capture.service`
-- 监听地址：`127.0.0.1:8010`，只能在服务器自身访问
+- Python 监听地址：`127.0.0.1:8010`；仅限服务器内部访问
 
 已于 2026-11-03 完成内部部署。服务器 Python 3.12.3 下 9 项测试通过；本地和 GitHub CI 使用 Python 3.13。
 
