@@ -126,6 +126,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     return app
 
 
-# The default app is local-development only: there is no authentication in this
-# initial skeleton. Do not expose it publicly until access control is implemented.
+# The API has no authentication, by design for this prototype. Production Nginx
+# forwards the upload route; Uvicorn itself continues to listen on loopback only.
 app = create_app()
