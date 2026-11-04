@@ -1,0 +1,15 @@
+# Run repository npm scripts without root privileges.
+[Unit]
+Description=Build and deploy Tencent static frontend
+Wants=network-online.target
+After=network-online.target
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+Environment=HOME=/home/ubuntu
+ExecStart=/usr/bin/python3 /usr/local/lib/clarity-deploy/frontend_deployer.py
+TimeoutStartSec=35min
+UMask=0022
+NoNewPrivileges=true
+PrivateTmp=true

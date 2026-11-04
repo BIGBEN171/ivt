@@ -1,0 +1,10 @@
+# Check for successful frontend commits about every five minutes.
+[Unit]
+Description=Check for Tencent frontend updates
+[Timer]
+OnBootSec=2min
+OnUnitInactiveSec=5min
+RandomizedDelaySec=20
+Unit=clarity-frontend-deploy.service
+[Install]
+WantedBy=timers.target
