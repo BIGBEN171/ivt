@@ -32,3 +32,18 @@ export async function uploadPhoto(photo, fetcher = fetch) {
   }
   return receipt.photo;
 }
+
+/** Upload one complete batch. Reusing its identity makes save retries idempotent. */
+export async function uploadBatch(batch, fetcher = fetch) {
+  const form = new FormData();
+  form.append('manifest', JSON.stringify({ id: batch.id, photos: batch.photos.map(({ blob, ...metadata }) => metadata) }));
+  for (const photo of batch.photos) form.append('files', photo.blob, `${photo.id}.png`);
+  let response;
+  try {
+    response = await fetcher('/api/v1/batches', { method: 'POST', body: form, signal: AbortSignal.timeout(120000) });
+  } catch { throw new Error('Saving was interrupted. Keep this page open and retry.'); }
+  if (!response.ok) throw new Error(response.status === 409 ? 'Batch identity conflict. Keep this page open and contact the operator.' : 'Could not save this batch. Keep this page open and retry.');
+  const receipt = await response.json();
+  if (receipt.id !== batch.id || receipt.photos?.length !== 15 || !receipt.photos.every((photo, i) => photo.id === batch.photos[i].id && photo.size_bytes === batch.photos[i].blob.size)) throw new Error('Unexpected save receipt. Please retry.');
+  return receipt;
+}

@@ -1,122 +1,75 @@
-/** React coordinates browser capture and HTTP persistence.
- * Camera hardware remains in the browser. The Python API stores the resulting PNG.
- * An unsaved photo stays in memory for retry; refreshing would discard that copy.
+/** Local kiosk flow: start -> camera readiness -> countdown -> burst -> durable save.
+ * The synchronous lock prevents double clicks before React re-renders.
+ * A failed save retains the original batch in memory for an idempotent retry.
  */
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { openCamera, closeCamera, capturePhoto } from './services/camera';
-import { uploadPhoto } from './services/api';
-import { explainError } from './services/errors';
+import { openCamera, closeCamera } from './services/camera';
+import { captureBatch } from './services/burst';
+import { uploadBatch } from './services/api';
 import './styles.css';
 
 function App() {
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
-  // React state updates are asynchronous; this lock prevents overlapping clicks.
-  const lock = useRef(false);
-  const mounted = useRef(true);
-  const [camera, setCamera] = useState('off');
-  const [phase, setPhase] = useState('idle');
-  const [photo, setPhoto] = useState(null);
-  const [photoUrl, setPhotoUrl] = useState('');
-  const [receipt, setReceipt] = useState(null);
-  const [error, setError] = useState('');
-  const busy = phase === 'capturing' || phase === 'saving';
-  const pending = photo && phase === 'failed';
-  const ready = camera === 'ready' && !busy && !pending;
-
-  useEffect(() => () => { mounted.current = false; closeCamera(streamRef.current); }, []);
+  const video = useRef(null), stream = useRef(null), locked = useRef(false), abort = useRef(null);
+  const [phase, setPhase] = useState('start'), [countdown, setCountdown] = useState(3);
+  const [count, setCount] = useState(0), [batch, setBatch] = useState(null), [receipt, setReceipt] = useState(null), [error, setError] = useState('');
+  const busy = ['connecting', 'countdown', 'capturing', 'saving'].includes(phase);
+  useEffect(() => () => { abort.current?.abort(); closeCamera(stream.current); }, []);
   useEffect(() => {
-    if (!photo) return;
-    const url = URL.createObjectURL(photo.blob);
-    setPhotoUrl(url);
-    return () => URL.revokeObjectURL(url);
-  }, [photo]);
-  useEffect(() => {
-    // This warning is best-effort; the browser does not durably queue failed uploads.
-    const warn = event => { if (busy || pending) { event.preventDefault(); event.returnValue = ''; } };
+    // Browser warnings are best effort; memory does not survive a page reload.
+    const warn = event => { if (busy || batch && phase === 'failed') { event.preventDefault(); event.returnValue = ''; } };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [busy, pending]);
+  }, [busy, batch, phase]);
 
-  async function startCamera() {
-    if (camera === 'starting') return;
-    setError(''); setCamera('starting');
-    closeCamera(streamRef.current);
+  async function save(current) {
+    setPhase('saving');
+    try { setReceipt(await uploadBatch(current)); setPhase('done'); setBatch(null); }
+    catch (err) { setError(err.message); setPhase('failed'); }
+  }
+
+  async function start() {
+    if (locked.current) return;
+    locked.current = true; setError(''); setCount(0); setReceipt(null); setPhase('connecting');
+    abort.current = new AbortController();
     try {
-      const stream = await openCamera();
-      if (!mounted.current) { closeCamera(stream); return; }
-      streamRef.current = stream;
-      stream.getVideoTracks()[0].addEventListener('ended', () => {
-        setCamera('off'); setError('The camera was disconnected. Please turn it on again.');
-      });
-      videoRef.current.srcObject = stream;
-      await videoRef.current.play();
-      setCamera('ready');
-    } catch (err) {
-      closeCamera(streamRef.current); setCamera('off'); setError(explainError(err));
-    }
+      stream.current = await openCamera();
+      if (abort.current.signal.aborted) throw new Error('Capture cancelled.');
+      video.current.srcObject = stream.current;
+      await video.current.play();
+      // Start the three-second countdown only after camera permission and playback.
+      setPhase('countdown');
+      for (let remaining = 3; remaining > 0; remaining--) {
+        setCountdown(remaining);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        if (abort.current.signal.aborted || document.hidden) throw new Error('Capture interrupted. Keep this window visible and start again.');
+      }
+      setPhase('capturing');
+      const captured = await captureBatch(video.current, { signal: abort.current.signal, onProgress: setCount });
+      setBatch(captured); closeCamera(stream.current);
+      await save(captured);
+    } catch (err) { setError(err.message); setPhase('start'); }
+    finally { closeCamera(stream.current); locked.current = false; }
   }
 
-  /** Wait for the server to confirm durable storage before showing success. */
-  async function persist(currentPhoto) {
-    setPhase('saving'); setReceipt(null);
-    try {
-      const saved = await uploadPhoto(currentPhoto);
-      setReceipt(saved); setPhase('saved');
-    } catch (err) { setPhase('failed'); setError(err.message); }
+  async function retry() {
+    if (locked.current || !batch) return;
+    locked.current = true; setError('');
+    try { await save(batch); } finally { locked.current = false; }
   }
 
-  async function takePhoto() {
-    if (!ready || lock.current) return;
-    lock.current = true; setError(''); setReceipt(null); setPhase('capturing');
-    try {
-      const captured = await capturePhoto(videoRef.current);
-      setPhoto(captured);
-      await persist(captured);
-    } catch (err) { setPhase('idle'); setError(explainError(err)); }
-    finally { lock.current = false; }
-  }
-
-  /** Retry the original ID, timestamp and Blob without taking another photograph. */
-  async function retrySave() {
-    if (lock.current || !pending) return;
-    lock.current = true; setError('');
-    try { await persist(photo); } finally { lock.current = false; }
-  }
-
-  const status = busy ? 'Saving…' : pending ? 'Not saved' : camera !== 'ready' ? 'Camera off' : 'Ready';
   return <main>
-    <header className="page-header">
-      <h1>Clarity <span>Capture</span></h1>
-      <span className={'status ' + (ready ? 'ready' : '')} role="status"><i aria-hidden="true"/>{status}</span>
-    </header>
-    <section className="capture-section" aria-label="Photo capture">
-      <div className="viewfinder">
-        <video ref={videoRef} autoPlay muted playsInline aria-label="Live camera preview"/>
-        {camera !== 'ready' && <div className="camera-placeholder">
-          <svg viewBox="0 0 80 64" fill="none" aria-hidden="true"><path d="M9 17h15l5-9h22l5 9h15v39H9z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round"/><circle cx="40" cy="36" r="12" stroke="currentColor" strokeWidth="2"/></svg>
-          <p>{camera === 'starting' ? 'Connecting…' : 'Camera off'}</p>
-        </div>}
-      </div>
-      <div id="setup" className="toolbar" aria-label="Camera setup">
-        <button className="text-button" disabled={camera === 'starting' || busy} onClick={() => {
-          if (camera === 'ready') { closeCamera(streamRef.current); setCamera('off'); }
-          else startCamera();
-        }}>{camera === 'ready' ? 'Turn off camera' : camera === 'starting' ? 'Connecting…' : 'Turn on camera'}</button>
-      </div>
-      <div className="capture-action"><button className="capture-button" onClick={takePhoto} disabled={!ready}>{busy ? 'Saving…' : 'Take photo'}</button></div>
-      {error && <div className="alert" role="alert">{error}{pending && ' Keep this page open until saved.'}</div>}
+    <header className="page-header"><h1>Clarity <span>Capture</span></h1><span className="status">Local capture</span></header>
+    {/* Keep the video mounted while connecting; hide it only with presentation styles. */}
+    <section className="viewfinder" hidden={!busy || phase === 'saving'}>
+      <video ref={video} autoPlay muted playsInline aria-label="Live camera preview" />
+      <div className="burst-overlay" role="status">{phase === 'connecting' ? 'Connecting…' : phase === 'countdown' ? countdown : `${count} / 15`}</div>
     </section>
-    {photoUrl && <section className="result" aria-label="Latest photo" aria-live="polite">
-      <img src={photoUrl} alt="Latest capture"/>
-      <div className="result-detail">
-        <h2>{phase === 'saved' && receipt ? 'Saved to server' : phase === 'failed' ? 'Not saved' : 'Saving…'}</h2>
-        <p className="filename">{receipt ? receipt.id : photo.filename}</p>
-        {pending && <button className="text-button" onClick={retrySave}>Retry save</button>}
-      </div>
-    </section>}
+    {phase === 'start' && <section className="start-screen"><h2>Ready when you are.</h2><p>3 seconds. 15 photos.</p><button className="capture-button" onClick={start}>Start</button></section>}
+    {phase === 'saving' && <section className="start-screen" role="status"><h2>Saving 15 photos…</h2><p>Keep this window open.</p></section>}
+    {phase === 'failed' && <section className="start-screen"><h2>Photos not yet confirmed saved</h2><button className="capture-button" onClick={retry}>Retry save</button></section>}
+    {phase === 'done' && <section className="start-screen"><h2>15 photos saved.</h2><p className="filename">{receipt.id}</p><button className="capture-button" onClick={() => setPhase('start')}>Next session</button><div className="photo-grid">{receipt.photos.map(photo => <img key={photo.id} src={`/api/v1/batches/${receipt.id}/photos/${photo.id}`} alt={`Photo ${photo.sequence}`} />)}</div></section>}
+    {error && <div className="alert" role="alert">{error}</div>}
   </main>;
 }
-
 createRoot(document.getElementById('root')).render(<App />);
