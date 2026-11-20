@@ -1,8 +1,8 @@
 # The frontend builds independently of the internal Python API and GitHub Pages.
+# Do not add a main push trigger: legacy Tencent polling treats this workflow's
+# successful push runs as deployment approval. Main CI lives in local-hospital-ci.yml.
 name: Tencent frontend tests
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:

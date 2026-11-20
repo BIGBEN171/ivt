@@ -1,8 +1,9 @@
-# Validate the single-computer branch without publishing to any cloud website.
+# Validate main and the single-computer branch without publishing to any cloud website.
+# This filename is deliberately separate from the legacy Tencent deployment gates.
 name: Windows local application
 on:
   push:
-    branches: [codex/local-hospital]
+    branches: [main, codex/local-hospital]
   pull_request:
     branches: [main]
 permissions:

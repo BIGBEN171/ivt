@@ -1,6 +1,8 @@
 # Windows 单机版本
 
-本分支 `codex/local-hospital` 用于医院单台 Windows 电脑，不部署到腾讯云或 GitHub Pages。
+当前版本用于医院单台 Windows 电脑。主干和 `codex/local-hospital` 推送后运行 Windows 前后端自动测试，不自动部署到腾讯云或 GitHub Pages。
+
+云端自动发布已停用：Pages 仅保留手动发布；旧 `backend-ci.yml` / `frontend-ci.yml` 仅保留 PR 和手动测试，不再产生腾讯云轮询器所要求的“同一提交、main、push、成功”发布信号。服务器上的轮询定时器未删除，现有线上版本保持原样。主干推送检查由 `local-hospital-ci.yml` 执行；不要直接恢复旧工作流的 main push 触发条件，否则会重新启用腾讯云自动更新。
 
 ## 使用
 

@@ -2,11 +2,9 @@
 # Action revisions are pinned to commit hashes; adjacent version labels are notes.
 name: Deploy Clarity Capture
 
-# Local edits do not trigger this workflow until pushed/merged into main.
-# workflow_dispatch also exposes a manual run option in GitHub Actions.
+# Automatic publication is disabled for the Windows local application.
+# Keep manual publishing available only for an intentional future cloud release.
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 # Keep the default token read-only; only the deploy job receives publishing rights.
