@@ -7,9 +7,11 @@ import { createRoot } from 'react-dom/client';
 import { openCamera, closeCamera } from './services/camera';
 import { captureBatch } from './services/burst';
 import { uploadBatch } from './services/api';
+import History from './components/History';
 import './styles.css';
 
 function App() {
+  const [view, setView] = useState('capture');
   const video = useRef(null), stream = useRef(null), locked = useRef(false), abort = useRef(null);
   const [phase, setPhase] = useState('start'), [countdown, setCountdown] = useState(3);
   const [count, setCount] = useState(0), [batch, setBatch] = useState(null), [receipt, setReceipt] = useState(null), [error, setError] = useState('');
@@ -60,6 +62,8 @@ function App() {
 
   return <main>
     <header className="page-header"><h1>Clarity <span>Capture</span></h1><span className="status">Local capture</span></header>
+    {view === 'history' && <History onBack={() => setView('capture')} />}
+    <div hidden={view !== 'capture'}>
     {/* Keep the video mounted while connecting; hide it only with presentation styles. */}
     <section className="viewfinder" hidden={!busy || phase === 'saving'}>
       <video ref={video} autoPlay muted playsInline aria-label="Live camera preview" />
@@ -70,6 +74,9 @@ function App() {
     {phase === 'failed' && <section className="start-screen"><h2>Photos not yet confirmed saved</h2><button className="capture-button" onClick={retry}>Retry save</button></section>}
     {phase === 'done' && <section className="start-screen"><h2>15 photos saved.</h2><p className="filename">{receipt.id}</p><button className="capture-button" onClick={() => setPhase('start')}>Next session</button><div className="photo-grid">{receipt.photos.map(photo => <img key={photo.id} src={`/api/v1/batches/${receipt.id}/photos/${photo.id}`} alt={`Photo ${photo.sequence}`} />)}</div></section>}
     {error && <div className="alert" role="alert">{error}</div>}
+    {/* Never navigate away from a capture or an unsaved batch. */}
+    {!busy && phase !== 'failed' && <div className="capture-action"><button className="text-button" onClick={() => setView('history')}>View photos</button></div>}
+    </div>
   </main>;
 }
 createRoot(document.getElementById('root')).render(<App />);

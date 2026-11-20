@@ -26,6 +26,8 @@ powershell -ExecutionPolicy Bypass -File .\Start-Local.ps1
 - `src/main.jsx`：开始、连接、倒计时、采集、保存、失败重试、完成页面。
 - `src/services/burst.js`：按视频新帧采样、记录时间、编码 PNG。
 - `src/services/api.js`：整组传给本机 Python，校验保存回执。
+- `src/components/History.jsx`：拍摄组检索、组内缩略图和照片放大预览。
+- `src/services/history.js`：查询请求、本地日期范围转换和拍摄时间显示。
 - `backend/main.py`：校验 15 张 PNG 和时间序列，提供接口及构建好的前端。
 - `backend/batches.py`：SQLite 索引、文件保存与相同批次重试。
 - `Start-Local.ps1`：准备依赖、构建网页、启动仅监听本机的 Python 服务。
@@ -36,7 +38,11 @@ powershell -ExecutionPolicy Bypass -File .\Start-Local.ps1
 
 文件写入与 SQLite 事务不是一个原子操作：代码先落盘再提交索引。中断可能留下未登记的图片文件夹；同一批次重试会验证其清单和图片校验值后补充索引。刷新后浏览器不会自动恢复未保存批次，当前没有自动恢复历史遗留文件夹的界面。备份时先关闭本地服务，再复制完整数据目录（数据库和照片都需要备份）。
 
-本机接口：`POST /api/v1/batches` 保存，`GET /api/v1/batches` 最近 100 组，`GET /api/v1/batches/{id}` 查询，`GET /api/v1/batches/{id}/photos/{photo_id}` 读图。完成页提供本次 15 张缩略图；历史查询界面和识别程序另行设计。旧单张接口暂时保留兼容原有代码，不迁移旧数据。
+本机接口：`POST /api/v1/batches` 保存，`GET /api/v1/batches` 最近 100 组，`GET /api/v1/batch-search` 分页检索，`GET /api/v1/batches/{id}` 查询，`GET /api/v1/batches/{id}/photos/{photo_id}` 读图。旧单张接口暂时保留兼容原有代码，不迁移旧数据。
+
+开始页或保存完成页点击 **View photos** 进入查看页面。输入完整或部分组编号，或选择起止日期，然后点击 **Search**；两种条件可以同时使用。日期按本机时区、每组第一张照片的拍摄时间筛选，包含结束日期全天，结果按拍摄时间倒序，每页 20 组。点击组卡片查看每张照片的序号和拍摄时间，点击缩略图放大，可切换上一张、下一张。返回列表会保留筛选条件。
+
+查看和检索为只读操作，不改变照片目录、文件名或数据库结构。检索接口接受 `group`、带时区的 `start` / `end`、`page` 和 `page_size`；时间区间为包含起点、不包含终点。识别程序尚未实现。
 
 ## 验证
 

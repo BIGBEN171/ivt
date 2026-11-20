@@ -14,7 +14,7 @@ from contextlib import asynccontextmanager
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import FastAPI, File, Form, HTTPException, Response, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Response, UploadFile, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -172,6 +172,18 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             return app.state.batches.get(batch_id)
         except FileNotFoundError:
             raise HTTPException(404, 'Batch not found') from None
+
+    @app.get('/api/v1/batch-search')
+    def search_batches(
+        group: Annotated[str, Query(max_length=100)] = '',
+        start: AwareDatetime | None = None, end: AwareDatetime | None = None,
+        page: Annotated[int, Query(ge=1)] = 1,
+        page_size: Annotated[int, Query(ge=1, le=100)] = 20,
+    ):
+        """Use timezone-aware bounds supplied by the local browser's date picker."""
+        if start and end and start >= end:
+            raise HTTPException(422, 'The end must be after the start')
+        return app.state.batches.search(group.strip(), start, end, page, page_size)
 
     @app.get('/api/v1/batches/{batch_id}/photos/{photo_id}')
     def batch_image(batch_id: UUID, photo_id: UUID):

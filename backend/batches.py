@@ -90,6 +90,28 @@ class BatchStore:
         with self.connect() as db:
             return [dict(row) for row in db.execute('SELECT id, created_at, status FROM batches ORDER BY created_at DESC LIMIT 100')]
 
+    def search(self, group='', start=None, end=None, page=1, page_size=20):
+        """Search by group ID and the first frame's capture time, never save time.
+
+        julianday normalizes existing timestamps with different UTC offsets.
+        Bounds are start-inclusive/end-exclusive; no stored files or rows change.
+        """
+        conditions, parameters = ['instr(lower(b.id), lower(?)) > 0'], [group]
+        for value, operator in ((start, '>='), (end, '<')):
+            if value is not None:
+                conditions.append(f'julianday(p.captured_at) {operator} julianday(?)')
+                parameters.append(value.isoformat())
+        source = '''FROM batches b JOIN batch_photos p
+                    ON p.batch_id=b.id AND p.sequence=1 WHERE ''' + ' AND '.join(conditions)
+        with self.connect() as db:
+            total = db.execute('SELECT count(*) ' + source, parameters).fetchone()[0]
+            rows = db.execute('''SELECT b.id, p.captured_at,
+                (SELECT count(*) FROM batch_photos n WHERE n.batch_id=b.id) AS photo_count
+                ''' + source + ''' ORDER BY julianday(p.captured_at) DESC, b.id
+                LIMIT ? OFFSET ?''', [*parameters, page_size, (page-1)*page_size]).fetchall()
+        return {'items': [dict(row) for row in rows], 'total': total,
+                'page': page, 'page_size': page_size}
+
     def image_path(self, batch_id, photo_id):
         with self.connect() as db:
             row = db.execute('SELECT relative_path FROM batch_photos WHERE id=? AND batch_id=?', (str(photo_id), str(batch_id))).fetchone()
