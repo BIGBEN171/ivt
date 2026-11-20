@@ -1,5 +1,7 @@
 # 清晰 · 本机拍摄原型
 
+当前 `codex/local-hospital` 分支是 **Windows 单机版**：开始页面 → 3 秒倒计时 → 15 个新视频帧 → 本机 Python 保存照片并登记 SQLite。请以 [单机版说明](LOCAL-HOSPITAL.md) 的启动方式、数据目录和操作流程为准。此分支不发布到线上；下面保留的是旧云端/单张拍摄版本的历史说明。
+
 前端使用 JavaScript + React，实现本机摄像头预览、拍照、保存至工作人员授权的文件夹。另有独立的 Python + FastAPI 后端，提供测试用 PNG 上传、查询和读取接口。前端尚未连接上传接口，不自动传输照片，不包含诊断功能。
 
 后端结构、启动命令与接口约定见 [backend/README.md](backend/README.md)。新增 Python 代码与测试均带英文注释；后端只用于本机开发，尚未部署，现有 GitHub Pages 工作流仍只发布前端。

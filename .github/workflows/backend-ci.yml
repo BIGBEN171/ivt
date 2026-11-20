@@ -1,11 +1,10 @@
 # Test the Python API independently; GitHub Pages cannot run a Python server.
-# The Tencent server polls this workflow and deploys only successful main push runs.
-# No server credentials or incoming deployment port are needed by GitHub Actions.
+# Legacy Tencent polling requires a successful main push run of this exact file.
+# Keep PR/manual tests, but never emit that deployment signal. Main push tests
+# now run in local-hospital-ci.yml, which validates both frontend and backend.
 name: Backend tests
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
   workflow_dispatch:

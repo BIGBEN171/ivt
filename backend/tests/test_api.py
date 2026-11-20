@@ -73,7 +73,8 @@ def test_limits_and_format(tmp_path):
     Image.new("RGB", (2, 2)).save(buffer, format="JPEG")
     with TestClient(create_app(Settings(data_dir=tmp_path))) as api:
         assert upload(api, uuid4(), buffer.getvalue()).status_code == 415
-    assert list(tmp_path.iterdir()) == []
+    # Startup now initializes the batch database, but rejected uploads create no images.
+    assert list(tmp_path.rglob('*.png')) == []
 
 
 def test_storage_failure_is_not_success(client, monkeypatch):
